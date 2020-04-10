@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
-import { isLoggedIn } from "../auth";
+import { isLoggedIn, logOut } from "../auth";
 import { BadRequest, Unauthorized } from "../errors";
+import { SESSION_ABSOLUTE_TIMEOUT } from "../config";
 
 export const guest = (req: Request, res: Response, next: NextFunction) => {
     if (isLoggedIn(req)) {
@@ -13,6 +14,21 @@ export const guest = (req: Request, res: Response, next: NextFunction) => {
 export const auth = (req: Request, res: Response, next: NextFunction) => {
     if (!isLoggedIn(req)) {
         return next(new Unauthorized("You must be logged in"));
+    }
+
+    next();
+};
+
+export const active = async (req: Request, res: Response, next: NextFunction) => {
+    if (isLoggedIn(req)) {
+        const now = Date.now();
+        const { createdAt } = req.session as Express.Session;
+
+        if (now > createdAt + SESSION_ABSOLUTE_TIMEOUT) {
+            await logOut(req, res);
+
+            return next(new Unauthorized("Session expired"));
+        }
     }
 
     next();
